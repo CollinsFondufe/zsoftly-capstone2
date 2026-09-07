@@ -44,11 +44,18 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: zsoftly-ecr-app
-          IMAGE_TAG: ${{ github.ref_name }}-${{ github.sha }}
         run: |
-          # Build the container image
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}-latest .
+          # Use base target branch for PRs (e.g., main) or ref_name for direct pushes
+          TARGET_BRANCH="${{ github.base_ref || github.ref_name }}"
+          # Clean slashes just in case
+          CLEAN_BRANCH=$(echo "$TARGET_BRANCH" | tr '/' '-')
+          
+          IMAGE_TAG="${CLEAN_BRANCH}-${{ github.sha }}"
+          LATEST_TAG="${CLEAN_BRANCH}-latest"
 
-          # Push both specific commit tag and latest environment tag
+          # Build image with clean tags
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG .
+
+          # Push both tags to ECR
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:${{ github.ref_name }}-latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$LATEST_TAG
